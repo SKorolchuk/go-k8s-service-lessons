@@ -210,6 +210,41 @@ func (s Store) QueryByID(ctx context.Context, traceID string, claims auth.Claims
 	return usr, nil
 }
 
+// QueryRolesByID gets roles for the specified user from the database by id.
+func (s Store) QueryRolesByID(ctx context.Context, traceID string, claims auth.Claims, userID string) (Roles, error) {
+	if err := validate.CheckID(userID); err != nil {
+		return Roles{}, database.ErrInvalidID
+	}
+
+	if !claims.Authorized(auth.RoleAdmin) && claims.Subject != userID {
+		return Roles{}, database.ErrForbidden
+	}
+
+	data := struct {
+		UserID string `db:"user_id"`
+	}{
+		UserID: userID,
+	}
+
+	const query = `
+	SELECT
+		roles
+	FROM
+		users
+	WHERE
+		user_id = :user_id`
+
+	var roles Roles
+	if err := database.NamedQueryStruct(ctx, s.log, s.db, traceID, query, data, &roles); err != nil {
+		if err == database.ErrNotFound {
+			return Roles{}, database.ErrNotFound
+		}
+		return Roles{}, errors.Wrapf(err, "selecting roles for user %q", data.UserID)
+	}
+
+	return roles, nil
+}
+
 // QueryByEmail gets the specified user from the database by email.
 func (s Store) QueryByEmail(ctx context.Context, traceID string, claims auth.Claims, email string) (User, error) {
 

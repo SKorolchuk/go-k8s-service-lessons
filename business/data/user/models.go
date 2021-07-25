@@ -1,9 +1,8 @@
 package user
 
 import (
-	"time"
-
 	"github.com/lib/pq"
+	"time"
 )
 
 // User represents an individual user.
@@ -15,6 +14,11 @@ type User struct {
 	PasswordHash []byte         `db:"password_hash" json:"-"`
 	DateCreated  time.Time      `db:"date_created" json:"date_created"`
 	DateUpdated  time.Time      `db:"date_updated" json:"date_updated"`
+}
+
+// Roles available for a specific user
+type Roles struct {
+	Roles        pq.StringArray `db:"roles" json:"roles"`
 }
 
 // NewUser contains information needed to create a new User.

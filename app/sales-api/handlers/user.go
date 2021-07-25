@@ -73,6 +73,35 @@ func (ug userGroup) queryByID(ctx context.Context, w http.ResponseWriter, r *htt
 	return web.Respond(ctx, w, usr, http.StatusOK)
 }
 
+func (ug userGroup) queryRolesByID(ctx context.Context, writer http.ResponseWriter, r *http.Request) error {
+	v, ok := ctx.Value(web.KeyValues).(*web.Values)
+	if !ok {
+		return web.NewShutdownError("web value missing from context")
+	}
+
+	claims, ok := ctx.Value(auth.Key).(auth.Claims);
+	if !ok {
+		return errors.New("claims missing from context")
+	}
+
+	id := web.Param(r, "id")
+	roles, err := ug.store.QueryRolesByID(ctx, v.TraceID, claims, id)
+	if err != nil {
+		switch errors.Cause(err) {
+		case database.ErrInvalidID:
+			return validate.NewRequestError(err, http.StatusBadRequest)
+		case database.ErrNotFound:
+			return validate.NewRequestError(err, http.StatusNotFound)
+		case database.ErrForbidden:
+			return validate.NewRequestError(err, http.StatusForbidden)
+		default:
+			return errors.Wrapf(err, "ID: %s", id)
+		}
+	}
+
+	return web.Respond(ctx, writer, roles, http.StatusOK)
+}
+
 func (ug userGroup) create(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	v, ok := ctx.Value(web.KeyValues).(*web.Values)
 	if !ok {
