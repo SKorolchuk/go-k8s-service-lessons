@@ -1,28 +1,7 @@
 # Ultimate Service
 
-[![CircleCI](https://circleci.com/gh/ardanlabs/service.svg?style=svg)](https://circleci.com/gh/ardanlabs/service)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ardanlabs/service)](https://goreportcard.com/report/github.com/ardanlabs/service)
-[![go.mod Go version](https://img.shields.io/github/go-mod/go-version/ardanlabs/service)](https://github.com/ardanlabs/service)
-
 Copyright 2018, 2019, 2020, 2021, Ardan Labs  
 info@ardanlabs.com
-
-## Ultimate Service 2.0 Video
-
-If you are watching the Ultimate Service video on the ArdanLabs [education](https://education.ardanlabs.com/) site,
-please use this branch in the repo.
-
-https://github.com/ardanlabs/service/tree/class
-
-This branch represents the code that is explained. I will be going back into
-the studio in April, 2021 to re-record the video for all the changes in the
-past year.
-
-## Ultimate Service 3.0 Live Classes
-
-This class teaches how to build production-level services in Go leveraging the power of Kubernetes. From the beginning, you will pair program with the instructor walking through the design philosophies and guidelines for building services in Go. With each new feature that is added to the service, you will learn how to deploy to and manage the Kubernetes environment used to run the service.
-
-[Course Outline](https://github.com/ardanlabs/service/wiki/course-outline) | [Class Schedule](https://www.eventbrite.com/o/ardan-labs-7092394651)
 
 ## Licensing
 
@@ -41,6 +20,8 @@ limitations under the License.
 ```
 
 ## About The Project
+
+#### NOTICE: Use Go version > 1.16.x
 
 Please read the project wiki.
 
@@ -63,18 +44,6 @@ bill@ardanlabs.com
 * [Before You Come To Class](https://github.com/ardanlabs/gotraining#before-you-come-to-class)
 * [Starter Material](https://github.com/ardanlabs/gotraining#starter-material)
 * [Get The Training Material](https://github.com/ardanlabs/gotraining#go-get-the-training-material)
-
-## Purchase Video
-
-The entire training class has been recorded to be made available to those who can't have the class taught at their company or who can't attend a conference. This is the entire class material.
-
-[education.ardanlabs.com](https://education.ardanlabs.com)
-
-## Our Experience
-
-We have taught Go to thousands of developers all around the world since 2014. There is no other company that has been doing it longer and our material has proven to help jump-start developers 6 to 12 months ahead of their knowledge of Go. We know what knowledge developers need in order to be productive and efficient when writing software in Go.
-
-Our classes are perfect for intermediate-level developers who have at least a few months to years of experience writing code in Go. Our classes provide a very deep knowledge of the programming langauge with a big push on language mechanics, design philosophies and guidelines. We focus on teaching how to write code with a priority on consistency, integrity, readability and simplicity. We cover a lot about “if performance matters” with a focus on mechanical sympathy, data oriented design, decoupling and writing/debugging production software.
 
 ## Our Teachers
 
@@ -167,7 +136,31 @@ The material has been designed to be taught in a classroom environment. The code
 
 ## Important Reading
 
-Please check out this page of [important reading](.reading/README.md). You will find articles and videos around topics related to this repo.
+Occasionally we run into material that we feel is important. This is a section place for that material. If you have material we should add, please send us an email.
+
+### Kubernetes
+[Kubernetes For Everyone](https://docs.google.com/document/d/1p4ZYQYM2VrMCR8K3T68JOMzWHlV-C8Jogrl9Ces77OA/edit?utm_sq=gjkgbut0r7) -- Pavan Belagatti  
+[kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
+
+### Observability
+[Health, Availability, Debuggability](https://medium.com/observability/health-availability-debuggability-5b0ab300b35c) -- Janna Dogan
+
+### GCP
+[Getting Started](https://console.cloud.google.com/getting-started)  
+[Deploying a containerized web application](https://cloud.google.com/kubernetes-engine/docs/tutorials/hello-app)  
+[Deploying a stateful application](https://cloud.google.com/kubernetes-engine/docs/how-to/stateful-apps)  
+[Persistent volumes and dynamic provisioning](https://cloud.google.com/kubernetes-engine/docs/concepts/persistent-volumes)
+
+### Terraform
+[Introduction to Terraform - A Practical Approach](https://www.youtube.com/watch?v=H0EQR3LGRz0) - Matthew Sanabria
+
+### Site Reliability Engineering
+
+[Site Reliability Engineering for Kubernetes](https://tammybutow.medium.com/site-reliability-engineering-for-kubernetes-b52877c70fb7) - Tammy Bryant Butow  
+[Site Reliability Engineering](https://landing.google.com/sre/book.html) - Google  
+[SLI, SLO, SLA](https://landing.google.com/sre/book/chapters/service-level-objectives.html) - Google  
+[SLIs, SLOs, SLAs, oh my!](https://www.youtube.com/watch?v=tEylFyxbDLE) - Liz Fong-Jones and Seth Vargo
+
 
 ## Before You Come To Class
 
@@ -214,17 +207,6 @@ http://farazdagi.com/blog/2015/vim-as-golang-ide/
 
 **Goland**  
 https://www.jetbrains.com/go/
-
-### Installing the Training Material
-
-While many of the examples can be done using the online playground (http://play.golang.org), some may find it easier to complete them with their local editor.  To do so, you will want to load the training material locally to your machine.  From a command prompt, issue the following commands:
-
-```sh
-mkdir -p $(go env GOPATH)/src/github.com/ardanlabs && cd $_
-git clone https://github.com/ardanlabs/gotraining.git
-```
-
-*NOTE:* This assumes you have Git installed.  If you don’t, you can find the installation instructions here: https://git-scm.com/
 
 ## Twitter
 
