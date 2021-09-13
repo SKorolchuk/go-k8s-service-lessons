@@ -3,40 +3,11 @@ package auth
 
 import (
 	"crypto/rsa"
+	"errors"
+	"fmt"
 
-	"github.com/dgrijalva/jwt-go/v4"
-	"github.com/pkg/errors"
+	"github.com/golang-jwt/jwt/v4"
 )
-
-// These are the expected values for Claims.Roles.
-const (
-	RoleAdmin = "ADMIN"
-	RoleUser  = "USER"
-)
-
-// ctxKey represents the type of value for the context key.
-type ctxKey int
-
-// Key is used to store/retrieve a Claims value from a context.Context.
-const Key ctxKey = 1
-
-// Claims represents the authorization claims transmitted via a JWT.
-type Claims struct {
-	jwt.StandardClaims
-	Roles []string `json:"roles"`
-}
-
-// Authorized returns true if the claims has at least one of the provided roles.
-func (c Claims) Authorized(roles ...string) bool {
-	for _, has := range c.Roles {
-		for _, want := range roles {
-			if has == want {
-				return true
-			}
-		}
-	}
-	return false
-}
 
 // KeyLookup declares a method set of behavior for looking up
 // private and public keys for JWT use.
@@ -48,18 +19,25 @@ type KeyLookup interface {
 // Auth is used to authenticate clients. It can generate a token for a
 // set of user claims and recreate the claims by parsing the token.
 type Auth struct {
-	algorithm string
+	activeKID string
 	keyLookup KeyLookup
 	method    jwt.SigningMethod
 	keyFunc   func(t *jwt.Token) (interface{}, error)
-	parser    *jwt.Parser
+	parser    jwt.Parser
 }
 
 // New creates an Auth to support authentication/authorization.
-func New(algorithm string, keyLookup KeyLookup) (*Auth, error) {
-	method := jwt.GetSigningMethod(algorithm)
+func New(activeKID string, keyLookup KeyLookup) (*Auth, error) {
+
+	// The activeKID represents the private key used to signed new tokens.
+	_, err := keyLookup.PrivateKey(activeKID)
+	if err != nil {
+		return nil, errors.New("active KID does not exist in store")
+	}
+
+	method := jwt.GetSigningMethod("RS256")
 	if method == nil {
-		return nil, errors.Errorf("unknown algorithm %v", algorithm)
+		return nil, errors.New("configuring algorithm RS256")
 	}
 
 	keyFunc := func(t *jwt.Token) (interface{}, error) {
@@ -77,10 +55,12 @@ func New(algorithm string, keyLookup KeyLookup) (*Auth, error) {
 	// Create the token parser to use. The algorithm used to sign the JWT must be
 	// validated to avoid a critical vulnerability:
 	// https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/
-	parser := jwt.NewParser(jwt.WithValidMethods([]string{algorithm}), jwt.WithAudience("student"))
+	parser := jwt.Parser{
+		ValidMethods: []string{"RS256"},
+	}
 
 	a := Auth{
-		algorithm: algorithm,
+		activeKID: activeKID,
 		keyLookup: keyLookup,
 		method:    method,
 		keyFunc:   keyFunc,
@@ -91,18 +71,18 @@ func New(algorithm string, keyLookup KeyLookup) (*Auth, error) {
 }
 
 // GenerateToken generates a signed JWT token string representing the user Claims.
-func (a *Auth) GenerateToken(kid string, claims Claims) (string, error) {
+func (a *Auth) GenerateToken(claims Claims) (string, error) {
 	token := jwt.NewWithClaims(a.method, claims)
-	token.Header["kid"] = kid
+	token.Header["kid"] = a.activeKID
 
-	privateKey, err := a.keyLookup.PrivateKey(kid)
+	privateKey, err := a.keyLookup.PrivateKey(a.activeKID)
 	if err != nil {
 		return "", errors.New("kid lookup failed")
 	}
 
 	str, err := token.SignedString(privateKey)
 	if err != nil {
-		return "", errors.Wrap(err, "signing token")
+		return "", fmt.Errorf("signing token: %w", err)
 	}
 
 	return str, nil
@@ -114,7 +94,7 @@ func (a *Auth) ValidateToken(tokenStr string) (Claims, error) {
 	var claims Claims
 	token, err := a.parser.ParseWithClaims(tokenStr, &claims, a.keyFunc)
 	if err != nil {
-		return Claims{}, errors.Wrap(err, "parsing token")
+		return Claims{}, fmt.Errorf("parsing token: %w", err)
 	}
 
 	if !token.Valid {

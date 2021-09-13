@@ -2,11 +2,12 @@ package mid
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"runtime/debug"
 
 	"github.com/ardanlabs/service/business/sys/metrics"
 	"github.com/ardanlabs/service/foundation/web"
-	"github.com/pkg/errors"
 )
 
 // Panics recovers from panics and converts the panic to an error so it is
@@ -23,7 +24,12 @@ func Panics() web.Middleware {
 			// variable after the fact.
 			defer func() {
 				if rec := recover(); rec != nil {
-					err = errors.Errorf("PANIC: %v", rec)
+
+					// Stack trace will be provided.
+					trace := debug.Stack()
+					err = fmt.Errorf("PANIC [%v] TRACE[%s]", rec, string(trace))
+
+					// Updates the metrics stored in the context.
 					metrics.AddPanics(ctx)
 				}
 			}()

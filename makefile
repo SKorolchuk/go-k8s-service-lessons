@@ -4,20 +4,23 @@
 
 SHELL := /bin/bash
 
-export PROJECT = ardan-starter-kit
-
 # ==============================================================================
 # Testing running system
 
 # For testing a simple query on the system. Don't forget to `make seed` first.
-# curl --user "admin@example.com:gophers" http://localhost:3000/v1/users/token/54bb2165-71e1-41a6-af3e-7da4a0e1e2c1
+# curl --user "admin@example.com:gophers" http://localhost:3000/v1/users/token
 # export TOKEN="COPY TOKEN STRING FROM LAST CALL"
 # curl -H "Authorization: Bearer ${TOKEN}" http://localhost:3000/v1/users/1/2
 
 # For testing load on the service.
 # hey -m GET -c 100 -n 10000 -H "Authorization: Bearer ${TOKEN}" http://localhost:3000/v1/users/1/2
+
+# Access zipkin
 # zipkin: http://localhost:9411
+
+# Access metrics directly (4000) or through the sidecar (3001)
 # expvarmon -ports=":4000" -vars="build,requests,goroutines,errors,panics,mem:memstats.Alloc"
+# expvarmon -ports=":3001" -endpoint="/metrics" -vars="build,requests,goroutines,errors,panics,mem:memstats.Alloc"
 
 # Used to install expvarmon program for metrics dashboard.
 # go install github.com/divan/expvarmon@latest
@@ -39,7 +42,7 @@ sales:
 	docker build \
 		-f zarf/docker/dockerfile.sales-api \
 		-t sales-api-amd64:$(VERSION) \
-		--build-arg VCS_REF=$(VERSION) \
+		--build-arg BUILD_REF=$(VERSION) \
 		--build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
 		.
 
@@ -47,12 +50,12 @@ metrics:
 	docker build \
 		-f zarf/docker/dockerfile.metrics \
 		-t metrics-amd64:$(VERSION) \
-		--build-arg VCS_REF=$(VERSION) \
+		--build-arg BUILD_REF=$(VERSION) \
 		--build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
 		.
 
 # ==============================================================================
-# Running from within k8s/dev
+# Running from within k8s/kind
 
 KIND_CLUSTER := ardan-starter-cluster
 
@@ -77,30 +80,50 @@ kind-load:
 	kind load docker-image sales-api-amd64:$(VERSION) --name $(KIND_CLUSTER)
 	kind load docker-image metrics-amd64:$(VERSION) --name $(KIND_CLUSTER)
 
-kind-services:
+kind-apply:
 	kustomize build zarf/k8s/kind/database-pod | kubectl apply -f -
 	kubectl wait --namespace=database-system --timeout=120s --for=condition=Available deployment/database-pod
+	kustomize build zarf/k8s/kind/zipkin-pod | kubectl apply -f -
+	kubectl wait --namespace=zipkin-system --timeout=120s --for=condition=Available deployment/zipkin-pod
 	kustomize build zarf/k8s/kind/sales-pod | kubectl apply -f -
 
 kind-services-delete:
 	kustomize build zarf/k8s/kind/sales-pod | kubectl delete -f -
+	kustomize build zarf/k8s/kind/zipkin-pod | kubectl delete -f -
 	kustomize build zarf/k8s/kind/database-pod | kubectl delete -f -
 
-kind-update: all kind-load
+kind-restart:
 	kubectl rollout restart deployment sales-pod
 
-kind-update-newversion: all kind-load kind-services
+kind-update: all kind-load kind-restart
+
+kind-update-apply: all kind-load kind-apply
 
 kind-logs:
-	kubectl logs -l app=sales --all-containers=true -f --tail=100 | go run app/logfmt/main.go
+	kubectl logs -l app=sales --all-containers=true -f --tail=100 | go run app/tooling/logfmt/main.go
 
 kind-logs-sales:
-	kubectl logs -l app=sales --all-containers=true -f --tail=100 | go run app/logfmt/main.go -service=SALES-API | jq
+	kubectl logs -l app=sales --all-containers=true -f --tail=100 | go run app/tooling/logfmt/main.go -service=SALES-API
+
+kind-logs-db:
+	kubectl logs -l app=database --namespace=database-system --all-containers=true -f --tail=100
+
+kind-logs-zipkin:
+	kubectl logs -l app=zipkin --namespace=zipkin-system --all-containers=true -f --tail=100
 
 kind-status:
 	kubectl get nodes -o wide
 	kubectl get svc -o wide
 	kubectl get pods -o wide --watch --all-namespaces
+
+kind-status-sales:
+	kubectl get pods -o wide --watch --namespace=sales-system
+
+kind-status-db:
+	kubectl get pods -o wide --watch --namespace=database-system
+
+kind-status-zipkin:
+	kubectl get pods -o wide --watch --namespace=zipkin-system
 
 kind-describe:
 	kubectl describe nodes
@@ -134,10 +157,10 @@ kind-database:
 # Administration
 
 migrate:
-	go run app/sales-admin/main.go migrate
+	go run app/tooling/sales-admin/main.go migrate
 
 seed: migrate
-	go run app/sales-admin/main.go seed
+	go run app/tooling/sales-admin/main.go seed
 
 # ==============================================================================
 # Running tests within the local computer

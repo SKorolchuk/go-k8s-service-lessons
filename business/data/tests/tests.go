@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/ardanlabs/service/business/data/schema"
-	"github.com/ardanlabs/service/business/data/user"
+	"github.com/ardanlabs/service/business/data/store/user"
 	"github.com/ardanlabs/service/business/sys/auth"
-	"github.com/ardanlabs/service/foundation/database"
+	"github.com/ardanlabs/service/business/sys/database"
 	"github.com/ardanlabs/service/foundation/docker"
 	"github.com/ardanlabs/service/foundation/keystore"
 	"github.com/ardanlabs/service/foundation/logger"
@@ -68,7 +68,16 @@ func NewUnit(t *testing.T, dbc DBContainer) (*zap.SugaredLogger, *sqlx.DB, func(
 		t.Fatalf("Migrating error: %s", err)
 	}
 
-	log := logger.New("TEST")
+	if err := schema.Seed(ctx, db); err != nil {
+		docker.DumpContainerLogs(t, c.ID)
+		docker.StopContainer(t, c.ID)
+		t.Fatalf("Seeding error: %s", err)
+	}
+
+	log, err := logger.New("TEST")
+	if err != nil {
+		t.Fatalf("logger error: %s", err)
+	}
 
 	// teardown is the function that should be invoked when the caller is done
 	// with the database.
@@ -93,11 +102,9 @@ func NewUnit(t *testing.T, dbc DBContainer) (*zap.SugaredLogger, *sqlx.DB, func(
 
 // Test owns state for running and shutting down tests.
 type Test struct {
-	TraceID  string
 	DB       *sqlx.DB
 	Log      *zap.SugaredLogger
 	Auth     *auth.Auth
-	KID      string
 	Teardown func()
 
 	t *testing.T
@@ -107,13 +114,6 @@ type Test struct {
 func NewIntegration(t *testing.T, dbc DBContainer) *Test {
 	log, db, teardown := NewUnit(t, dbc)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := schema.Seed(ctx, db); err != nil {
-		t.Fatal(err)
-	}
-
 	// Create RSA keys to enable authentication in our service.
 	keyID := "4754d86b-7a6d-4df5-9c65-224741361492"
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -122,17 +122,15 @@ func NewIntegration(t *testing.T, dbc DBContainer) *Test {
 	}
 
 	// Build an authenticator using this private key and id for the key store.
-	auth, err := auth.New("RS256", keystore.NewMap(map[string]*rsa.PrivateKey{keyID: privateKey}))
+	auth, err := auth.New(keyID, keystore.NewMap(map[string]*rsa.PrivateKey{keyID: privateKey}))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	test := Test{
-		TraceID:  "00000000-0000-0000-0000-000000000000",
 		DB:       db,
 		Log:      log,
 		Auth:     auth,
-		KID:      keyID,
 		t:        t,
 		Teardown: teardown,
 	}
@@ -145,12 +143,12 @@ func (test *Test) Token(email, pass string) string {
 	test.t.Log("Generating token for test ...")
 
 	store := user.NewStore(test.Log, test.DB)
-	claims, err := store.Authenticate(context.Background(), test.TraceID, time.Now(), email, pass)
+	claims, err := store.Authenticate(context.Background(), time.Now(), email, pass)
 	if err != nil {
 		test.t.Fatal(err)
 	}
 
-	token, err := test.Auth.GenerateToken(test.KID, claims)
+	token, err := test.Auth.GenerateToken(claims)
 	if err != nil {
 		test.t.Fatal(err)
 	}

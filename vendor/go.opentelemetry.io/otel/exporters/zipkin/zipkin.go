@@ -91,10 +91,10 @@ func New(collectorURL string, opts ...Option) (*Exporter, error) {
 	}
 	u, err := url.Parse(collectorURL)
 	if err != nil {
-		return nil, fmt.Errorf("invalid collector URL: %v", err)
+		return nil, fmt.Errorf("invalid collector URL %q: %v", collectorURL, err)
 	}
 	if u.Scheme == "" || u.Host == "" {
-		return nil, errors.New("invalid collector URL")
+		return nil, fmt.Errorf("invalid collector URL %q: no scheme or host", collectorURL)
 	}
 
 	cfg := config{}
@@ -126,7 +126,7 @@ func (e *Exporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpa
 		e.logf("no spans to export")
 		return nil
 	}
-	models := toZipkinSpanModels(spans)
+	models := SpanModels(spans)
 	body, err := json.Marshal(models)
 	if err != nil {
 		return e.errf("failed to serialize zipkin models to JSON: %v", err)
